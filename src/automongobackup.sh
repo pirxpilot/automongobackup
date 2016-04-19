@@ -113,6 +113,9 @@ REQUIREDBAUTHDB="yes"
 # Maximum files of a single backup used by split - leave empty if no split required
 # MAXFILESIZE=""
 
+# If defined used as a key for symmetric encryption of the resulting backup file
+# ENCRYPTION_KEY=
+
 # Command to run before backups (uncomment to use)
 # PREBACKUP=""
 
@@ -399,6 +402,14 @@ else
     }
 fi
 
+if [ -n "$ENCRYPTION_KEY" ]; then
+    encrypt() {
+        /usr/bin/gpg --symmetric --passphrase $ENCRYPTION_KEY --no-use-agent
+    }
+else
+    encrypt() { cat; }
+fi
+
 # Compression function plus latest copy
 compression () {
     SUFFIX=""
@@ -407,9 +418,10 @@ compression () {
     if [ -n "$COMP" ]; then
         [ "$COMP" = "gzip" ] && SUFFIX=".tgz"
         [ "$COMP" = "bzip2" ] && SUFFIX=".tar.bz2"
+        [ -n "$ENCRYPTION_KEY" ] && SUFFIX="${SUFFIX}.gpg"
         echo Tar and $COMP to "$file$SUFFIX"
         cd "$dir" || return 1
-        tar -cf - "$file" | $COMP --stdout | write_file "${file}${SUFFIX}"
+        tar -cf - "$file" | $COMP --stdout | encrypt | write_file "${file}${SUFFIX}"
         cd - >/dev/null || return 1
     else
         echo "No compression option set, check advanced settings"
