@@ -236,7 +236,7 @@ REQUIREDBAUTHDB="yes"
 
 shellout () {
     if [ -n "$1" ]; then
-        echo $1
+        echo "$1"
         exit 1
     fi
     exit 0
@@ -255,14 +255,13 @@ done
 #=====================================================================
 
 PATH=/usr/local/bin:/usr/bin:/bin
-DATE=`date +%Y-%m-%d_%Hh%Mm`                      # Datestamp e.g 2002-09-21
-DOW=`date +%A`                                    # Day of the week e.g. Monday
-DNOW=`date +%u`                                   # Day number of the week 1 to 7 where 1 represents Monday
-DOM=`date +%d`                                    # Date of the Month e.g. 27
-M=`date +%B`                                      # Month e.g January
-W=`date +%V`                                      # Week Number e.g 37
+DATE=$(date +%Y-%m-%d_%Hh%Mm)                      # Datestamp e.g 2002-09-21
+DOW=$(date +%A)                                    # Day of the week e.g. Monday
+DNOW=$(date +%u)                                   # Day number of the week 1 to 7 where 1 represents Monday
+DOM=$(date +%d)                                    # Date of the Month e.g. 27
+M=$(date +%B)                                      # Month e.g January
+W=$(date +%V)                                      # Week Number e.g 37
 VER=0.10                                          # Version Number
-BACKUPFILES=""
 OPT=""                                            # OPT string for use with mongodump
 
 # Do we need to use a username/password?
@@ -295,11 +294,11 @@ fi
 
 if [ -n "$MAXFILESIZE" ]; then
     write_file() {
-        split --bytes $MAXFILESIZE --numeric-suffixes - "${1}-"
+        split --bytes "$MAXFILESIZE" --numeric-suffixes - "${1}-"
     }
 else
     write_file() {
-        cat > $1
+        cat > "$1"
     }
 fi
 
@@ -355,15 +354,15 @@ if [ "$PREBACKUP" ]; then
     echo ======================================================================
     echo "Prebackup command output."
     echo
-    eval $PREBACKUP
+    eval "$PREBACKUP"
     echo
     echo ======================================================================
     echo
 fi
 
 # Hostname for LOG information
-if [ "$DBHOST" = "localhost" -o "$DBHOST" = "127.0.0.1" ]; then
-    HOST=`hostname`
+if [ "$DBHOST" = "localhost" ] || [ "$DBHOST" = "127.0.0.1" ]; then
+    HOST=$(hostname)
     if [ "$SOCKET" ]; then
         OPT="$OPT --socket=$SOCKET"
     fi
@@ -378,7 +377,7 @@ echo
 echo Backup of Database Server - $HOST on $DBHOST
 echo ======================================================================
 
-echo Backup Start `date`
+echo Backup Start "$(date)"
 echo ======================================================================
 # Monthly Full Backup of all Databases
 if [[ $DOM = "01" ]] && [[ $DOMONTHLY = "yes" ]]; then
@@ -386,7 +385,7 @@ if [[ $DOM = "01" ]] && [[ $DOMONTHLY = "yes" ]]; then
     echo
     # Delete old monthly backups while respecting the set rentention policy.
     if [[ $MONTHLYRETENTION -ge 0 ]] ; then
-        NUM_OLD_FILES=`find $BACKUPDIR/monthly -depth -not -newermt "$MONTHLYRETENTION month ago" -type f | wc -l`
+        NUM_OLD_FILES=$(find $BACKUPDIR/monthly -depth -not -newermt "$MONTHLYRETENTION month ago" -type f | wc -l)
         if [[ $NUM_OLD_FILES -gt 0 ]] ; then
             echo Deleting "$NUM_OLD_FILES" global setting backup file\(s\) older than "$MONTHLYRETENTION" month\(s\) old.
 	    find $BACKUPDIR/monthly -not -newermt "$MONTHLYRETENTION month ago" -type f -delete
@@ -395,14 +394,14 @@ if [[ $DOM = "01" ]] && [[ $DOMONTHLY = "yes" ]]; then
     FILE="$BACKUPDIR/monthly/$DATE.$M"
 
 # Weekly Backup
-elif [[ $DNOW = $WEEKLYDAY ]] && [[ $DOWEEKLY = "yes" ]] ; then
+elif [[ $DNOW = "$WEEKLYDAY" ]] && [[ $DOWEEKLY = "yes" ]] ; then
     echo Weekly Backup
     echo
     if [[ $WEEKLYRETENTION -ge 0 ]] ; then
         # Delete old weekly backups while respecting the set rentention policy.
-        NUM_OLD_FILES=`find $BACKUPDIR/weekly -depth -not -newermt "$WEEKLYRETENTION week ago" -type f | wc -l`
+        NUM_OLD_FILES=$(find $BACKUPDIR/weekly -depth -not -newermt "$WEEKLYRETENTION week ago" -type f | wc -l)
         if [[ $NUM_OLD_FILES -gt 0 ]] ; then
-            echo Deleting $NUM_OLD_FILES global setting backup file\(s\) older than "$WEEKLYRETENTION" week\(s\) old.
+            echo Deleting "$NUM_OLD_FILES" global setting backup file\(s\) older than "$WEEKLYRETENTION" week\(s\) old.
             find $BACKUPDIR/weekly -not -newermt "$WEEKLYRETENTION week ago" -type f -delete
         fi
     fi
@@ -414,9 +413,9 @@ elif [[ $DODAILY = "yes" ]] ; then
     echo
     # Delete old daily backups while respecting the set rentention policy.
     if [[ $DAILYRETENTION -ge 0 ]] ; then
-        NUM_OLD_FILES=`find $BACKUPDIR/daily -depth -name "*.$DOW.*" -not -newermt "$DAILYRETENTION week ago" -type f | wc -l`
-        if [[ $NUM_OLD_FILES > 0 ]] ; then
-            echo Deleting $NUM_OLD_FILES global setting backup file\(s\) made in previous weeks.
+        NUM_OLD_FILES=$(find $BACKUPDIR/daily -depth -name "*.$DOW.*" -not -newermt "$DAILYRETENTION week ago" -type f | wc -l)
+        if [[ $NUM_OLD_FILES -gt 0 ]] ; then
+            echo Deleting "$NUM_OLD_FILES" global setting backup file\(s\) made in previous weeks.
             find $BACKUPDIR/daily -name "*.$DOW.*" -not -newermt "$DAILYRETENTION week ago" -type f -delete
         fi
     fi
@@ -424,17 +423,17 @@ elif [[ $DODAILY = "yes" ]] ; then
 
 fi
 
-dbdump $FILE
+dbdump "$FILE"
 
 STATUS=$?
 
 echo ----------------------------------------------------------------------
-echo Backup End Time `date`
+echo Backup End Time "$(date)"
 echo ======================================================================
 
 echo Total disk space used for backup storage..
 echo Size - Location
-echo `du -hs "$BACKUPDIR"`
+du -hs "$BACKUPDIR"
 echo
 echo ======================================================================
 
@@ -443,7 +442,7 @@ if [ "$POSTBACKUP" ]; then
     echo ======================================================================
     echo "Postbackup command output."
     echo
-    eval $POSTBACKUP
+    eval "$POSTBACKUP"
     echo
     echo ======================================================================
 fi
