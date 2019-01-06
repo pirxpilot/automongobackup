@@ -385,15 +385,16 @@ fi
 # Compression function plus latest copy
 compression () {
     SUFFIX=""
-    dir=$(dirname $1)
-    file=$(basename $1)
+    dir=$(dirname "$1")
+    file=$(basename "$1")
     if [ -n "$COMP" ]; then
         [ "$COMP" = "gzip" ] && SUFFIX=".tgz"
         [ "$COMP" = "bzip2" ] && SUFFIX=".tar.bz2"
+        [ "$COMP" = "xz" ] && SUFFIX=".tar.xz"
         [ -n "$ENCRYPTION_KEY" ] && SUFFIX="${SUFFIX}.gpg"
         echo Tar and $COMP to "$file$SUFFIX"
         cd "$dir" || return 1
-        tar -cf - "$file" | $COMP --stdout | encrypt | write_file "${file}${SUFFIX}"
+        tar --create --file - "$file" | $COMP --stdout | encrypt | write_file "${file}${SUFFIX}"
         cd - >/dev/null || return 1
     else
         echo "No compression option set, check advanced settings"
