@@ -54,20 +54,6 @@ DBPORT="27017"
 # Backup directory location e.g /backups
 BACKUPDIR="/var/backups/mongodb"
 
-# Mail setup
-# What would you like to be mailed to you?
-# - log   : send only log file
-# - files : send log file and sql files as attachments (see docs)
-# - stdout : will simply output the log to the screen if run manually.
-# - quiet : Only send logs if an error occurs to the MAILADDR.
-MAILCONTENT="stdout"
-
-# Set the maximum allowed email size in k. (4000 = approx 5MB email [see docs])
-MAXATTSIZE="4000"
-
-# Email Address to send mail to? (user@domain.com)
-# MAILADDR=""
-
 # ============================================================================
 # === SCHEDULING AND RETENTION OPTIONS ( Read the doc's below for details )===
 #=============================================================================
@@ -135,17 +121,6 @@ REQUIREDBAUTHDB="yes"
 # You can change the backup storage location from /backups to anything
 # you like by using the BACKUPDIR setting..
 #
-# The MAILCONTENT and MAILADDR options and pretty self explanatory, use
-# these to have the backup log mailed to you at any email address or multiple
-# email addresses in a space seperated list.
-#
-# (If you set mail content to "log" you will require access to the "mail" program
-# on your server. If you set this to "files" you will have to have mutt installed
-# on your server. If you set it to "stdout" it will log to the screen if run from
-# the console or to the cron job owner if run through cron. If you set it to "quiet"
-# logs will only be mailed if there are errors reported. )
-#
-#
 # Finally copy automongobackup.sh to anywhere on your server and make sure
 # to set executable permission. You can also copy the script to
 # /etc/cron.daily to have it execute automatically every night or simply
@@ -172,8 +147,8 @@ REQUIREDBAUTHDB="yes"
 # Backup Rotation..
 #=====================================================================
 #
-# Daily backups are executed if DODAILY is set to "yes". 
-# The number of daily backup copies to keep for each day (i.e. 'Monday', 'Tuesday', etc.) is set with DAILYRETENTION. 
+# Daily backups are executed if DODAILY is set to "yes".
+# The number of daily backup copies to keep for each day (i.e. 'Monday', 'Tuesday', etc.) is set with DAILYRETENTION.
 # DAILYRETENTION=0 rotates daily backups every week (i.e. only the most recent daily copy is kept). -1 disables rotation.
 #
 # Weekly backups are executed if DOWEEKLY is set to "yes".
@@ -341,9 +316,6 @@ touch $LOGERR
 exec 7>&2           # Link file descriptor #7 with stderr.
                     # Saves stderr.
 exec 2> $LOGERR     # stderr replaced with file $LOGERR.
-
-# When a desire is to receive log via e-mail then we close stdout and stderr.
-[ "x$MAILCONTENT" == "xlog" ] && exec 6>&- 7>&-
 
 # Functions
 
@@ -529,7 +501,7 @@ elif [[ $DODAILY = "yes" ]] ; then
         NUM_OLD_FILES=`find $BACKUPDIR/daily -depth -name "*.$DOW.*" -not -newermt "$DAILYRETENTION week ago" -type f | wc -l`
         if [[ $NUM_OLD_FILES > 0 ]] ; then
             echo Deleting $NUM_OLD_FILES global setting backup file\(s\) made in previous weeks.
-            find $BACKUPDIR/daily -name "*.$DOW.*" -not -newermt "$DAILYRETENTION week ago" -type f -delete		
+            find $BACKUPDIR/daily -name "*.$DOW.*" -not -newermt "$DAILYRETENTION week ago" -type f -delete
         fi
     fi
     FILE="$BACKUPDIR/daily/$DATE.$DOW"
@@ -558,31 +530,19 @@ if [ "$POSTBACKUP" ]; then
     echo ======================================================================
 fi
 
-# Clean up IO redirection if we plan not to deliver log via e-mail.
-[ ! "x$MAILCONTENT" == "xlog" ] && exec 1>&6 2>&7 6>&- 7>&-
-
 if [ -s "$LOGERR" ]; then
     eval $SED "/^connected/d" "$LOGERR"
 fi
 
-if [ "$MAILCONTENT" = "log" ]; then
-    cat "$LOGFILE" | mail -s "Mongo Backup Log for $HOST - $DATE" $MAILADDR
-
-    if [ -s "$LOGERR" ]; then
-        cat "$LOGERR"
-        cat "$LOGERR" | mail -s "ERRORS REPORTED: Mongo Backup error Log for $HOST - $DATE" $MAILADDR
-    fi
+if [ -s "$LOGERR" ]; then
+    cat "$LOGFILE"
+    echo
+    echo "###### WARNING ######"
+    echo "STDERR written to during mongodump execution."
+    echo "The backup probably succeeded, as mongodump sometimes writes to STDERR, but you may wish to scan the error log below:"
+    cat "$LOGERR"
 else
-    if [ -s "$LOGERR" ]; then
-        cat "$LOGFILE"
-        echo
-        echo "###### WARNING ######"
-        echo "STDERR written to during mongodump execution."
-        echo "The backup probably succeeded, as mongodump sometimes writes to STDERR, but you may wish to scan the error log below:"
-        cat "$LOGERR"
-    else
-        cat "$LOGFILE"
-    fi
+    cat "$LOGFILE"
 fi
 
 # TODO: Would be nice to know if there were any *actual* errors in the $LOGERR
