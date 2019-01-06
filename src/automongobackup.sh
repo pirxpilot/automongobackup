@@ -78,9 +78,6 @@ MONTHLYRETENTION=4
 # Choose Compression type. (gzip or bzip2)
 COMP="gzip"
 
-# Choose if the uncompressed folder should be deleted after compression has completed
-CLEANUP="yes"
-
 # Additionally keep a copy of the most recent backup in a seperate directory.
 LATEST="yes"
 
@@ -296,15 +293,6 @@ fi
 
 # Functions
 
-# Database dump function
-dbdump () {
-    mongodump --quiet --host=$DBHOST:$DBPORT --out=$1 $OPT
-    [ -e "$1" ] && return 0
-    echo "ERROR: mongodump failed to create dumpfile: $1" >&2
-    return 1
-}
-
-
 if [ -n "$MAXFILESIZE" ]; then
     write_file() {
         split --bytes $MAXFILESIZE --numeric-suffixes - "${1}-"
@@ -315,7 +303,21 @@ else
     }
 fi
 
+SUFFIX=".archive"
+
+if [ -n "$COMP" ]; then
+    [ "$COMP" = "gzip" ] && SUFFIX="${SUFFIX}.gz"
+    [ "$COMP" = "bzip2" ] && SUFFIX="${SUFFIX}.bz2"
+    [ "$COMP" = "xz" ] && SUFFIX="${SUFFIX}.xz"
+    compress() {
+        $COMP ${COMP_OPTS} --stdout
+    }
+else
+    compress() { cat; }
+fi
+
 if [ -n "$ENCRYPTION_KEY" ]; then
+    SUFFIX="${SUFFIX}.gpg"
     encrypt() {
         /usr/bin/gpg --symmetric --passphrase "$ENCRYPTION_KEY" --batch --no-use-agent
     }
@@ -323,23 +325,18 @@ else
     encrypt() { cat; }
 fi
 
+archive() {
+    mongodump --quiet --host=$DBHOST --port=$DBPORT --archive $OPT
+}
+
 # Compression function plus latest copy
-compression () {
-    SUFFIX=""
+dbdump() {
     dir=$(dirname "$1")
     file=$(basename "$1")
-    if [ -n "$COMP" ]; then
-        [ "$COMP" = "gzip" ] && SUFFIX=".tgz"
-        [ "$COMP" = "bzip2" ] && SUFFIX=".tar.bz2"
-        [ "$COMP" = "xz" ] && SUFFIX=".tar.xz"
-        [ -n "$ENCRYPTION_KEY" ] && SUFFIX="${SUFFIX}.gpg"
-        echo Tar and $COMP to "$file$SUFFIX"
-        cd "$dir" || return 1
-        tar --create --file - "$file" | $COMP --stdout | encrypt | write_file "${file}${SUFFIX}"
-        cd - >/dev/null || return 1
-    else
-        echo "No compression option set, check advanced settings"
-    fi
+    echo Dump to "${file}${SUFFIX}"
+    cd "$dir" || return 1
+    archive | compress | encrypt | write_file "${file}${SUFFIX}"
+    cd - >/dev/null || return 1
 
     if [ "$LATEST" = "yes" ]; then
         if [ "$LATESTLINK" = "yes" ];then
@@ -348,11 +345,6 @@ compression () {
             COPY="cp"
         fi
         $COPY "$1$SUFFIX*" "$BACKUPDIR/latest/"
-    fi
-
-    if [ "$CLEANUP" = "yes" ]; then
-        echo Cleaning up folder at "$1"
-        rm -rf "$1"
     fi
 
     return 0
@@ -432,7 +424,7 @@ elif [[ $DODAILY = "yes" ]] ; then
 
 fi
 
-dbdump $FILE && compression $FILE
+dbdump $FILE
 
 STATUS=$?
 
