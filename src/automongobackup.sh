@@ -376,7 +376,7 @@ fi
 
 if [ -n "$ENCRYPTION_KEY" ]; then
     encrypt() {
-        /usr/bin/gpg --symmetric --passphrase $ENCRYPTION_KEY --no-use-agent
+        /usr/bin/gpg --symmetric --passphrase "$ENCRYPTION_KEY" --batch --no-use-agent
     }
 else
     encrypt() { cat; }
