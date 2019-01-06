@@ -90,9 +90,6 @@ LATESTLINK="yes"
 # Use oplog for point-in-time snapshotting.
 OPLOG="yes"
 
-# Choose other Server if is Replica-Set Master
-REPLICAONSLAVE="yes"
-
 # Allow DBUSERNAME without DBAUTHDB
 REQUIREDBAUTHDB="yes"
 
@@ -307,42 +304,6 @@ dbdump () {
     return 1
 }
 
-#
-# Select first available Secondary member in the Replica Sets and show its
-# host name and port.
-#
-function select_secondary_member {
-    # We will use indirect-reference hack to return variable from this function.
-    local __return=$1
-
-    # Return list of with all replica set members
-    members=( $(mongo --quiet --host $DBHOST:$DBPORT --eval 'rs.conf().members.forEach(function(x){ print(x.host) })') )
-
-    # Check each replset member to see if it's a secondary and return it.
-    if [ ${#members[@]} -gt 1 ]; then
-        for member in "${members[@]}"; do
-
-            is_secondary=$(mongo --quiet --host $member --eval 'rs.isMaster().secondary')
-            case "$is_secondary" in
-                'true')     # First secondary wins ...
-                    secondary=$member
-                    break
-                ;;
-                'false')    # Skip particular member if it is a Primary.
-                    continue
-                ;;
-                *)          # Skip irrelevant entries.  Should not be any anyway ...
-                    continue
-                ;;
-            esac
-        done
-    fi
-
-    if [ -n "$secondary" ]; then
-        # Ugly hack to return value from a Bash function ...
-        eval $__return="'$secondary'"
-    fi
-}
 
 if [ -n "$MAXFILESIZE" ]; then
     write_file() {
@@ -418,26 +379,8 @@ else
     HOST=$DBHOST
 fi
 
-# Try to select an available secondary for the backup or fallback to DBHOST.
-if [ "x${REPLICAONSLAVE}" == "xyes" ]; then
-    # Return value via indirect-reference hack ...
-    select_secondary_member secondary
-
-    if [ -n "$secondary" ]; then
-        DBHOST=${secondary%%:*}
-        DBPORT=${secondary##*:}
-    else
-        SECONDARY_WARNING="WARNING: No suitable Secondary found in the Replica Sets.  Falling back to ${DBHOST}."
-    fi
-fi
-
 echo ======================================================================
 echo AutoMongoBackup VER $VER
-
-if [ ! -z "$SECONDARY_WARNING" ]; then
-    echo
-    echo "$SECONDARY_WARNING"
-fi
 
 echo
 echo Backup of Database Server - $HOST on $DBHOST
