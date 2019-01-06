@@ -268,8 +268,6 @@ DOM=`date +%d`                                    # Date of the Month e.g. 27
 M=`date +%B`                                      # Month e.g January
 W=`date +%V`                                      # Week Number e.g 37
 VER=0.10                                          # Version Number
-LOGFILE=$BACKUPDIR/$DBHOST-`date +%H%M`.log       # Logfile Name
-LOGERR=$BACKUPDIR/ERRORS_$DBHOST-`date +%H%M`.log # Logfile Name
 BACKUPFILES=""
 OPT=""                                            # OPT string for use with mongodump
 
@@ -298,24 +296,6 @@ if [ "$LATEST" = "yes" ]; then
     rm -rf "$BACKUPDIR/latest"
     mkdir -p "$BACKUPDIR/latest" || shellout 'failed to create directory'
 fi
-
-# Check for correct sed usage
-if [ $(uname -s) = 'Darwin' -o $(uname -s) = 'FreeBSD' ]; then
-    SED="sed -i ''"
-else
-    SED="sed -i"
-fi
-
-# IO redirection for logging.
-touch $LOGFILE
-exec 6>&1           # Link file descriptor #6 with stdout.
-                    # Saves stdout.
-exec > $LOGFILE     # stdout replaced with file $LOGFILE.
-
-touch $LOGERR
-exec 7>&2           # Link file descriptor #7 with stderr.
-                    # Saves stderr.
-exec 2> $LOGERR     # stderr replaced with file $LOGERR.
 
 # Functions
 
@@ -511,6 +491,8 @@ fi
 
 dbdump $FILE && compression $FILE
 
+STATUS=$?
+
 echo ----------------------------------------------------------------------
 echo Backup End Time `date`
 echo ======================================================================
@@ -530,29 +512,5 @@ if [ "$POSTBACKUP" ]; then
     echo
     echo ======================================================================
 fi
-
-if [ -s "$LOGERR" ]; then
-    eval $SED "/^connected/d" "$LOGERR"
-fi
-
-if [ -s "$LOGERR" ]; then
-    cat "$LOGFILE"
-    echo
-    echo "###### WARNING ######"
-    echo "STDERR written to during mongodump execution."
-    echo "The backup probably succeeded, as mongodump sometimes writes to STDERR, but you may wish to scan the error log below:"
-    cat "$LOGERR"
-else
-    cat "$LOGFILE"
-fi
-
-# TODO: Would be nice to know if there were any *actual* errors in the $LOGERR
-STATUS=0
-if [ -s "$LOGERR" ]; then
-    STATUS=1
-fi
-
-# Clean up Logfile
-rm -f "$LOGFILE" "$LOGERR"
 
 exit $STATUS
