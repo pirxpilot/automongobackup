@@ -2,7 +2,7 @@
 set -eo pipefail
 #
 # MongoDB Backup Script
-# VER. 0.20
+# VER. 2.0.0
 # More Info: http://github.com/micahwedemeyer/automongobackup
 
 # Note, this is a lobotomized port of AutoMySQLBackup
@@ -200,7 +200,7 @@ DNOW=$(date +%u)                                   # Day number of the week 1 to
 DOM=$(date +%d)                                    # Date of the Month e.g. 27
 M=$(date +%B)                                      # Month e.g January
 W=$(date +%V)                                      # Week Number e.g 37
-VER=0.10                                          # Version Number
+VER=2.0.0                                          # Version Number
 OPT=""                                            # OPT string for use with mongodump
 
 # Do we need to use a username/password?
